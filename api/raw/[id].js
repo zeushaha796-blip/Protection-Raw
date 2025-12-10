@@ -15,11 +15,19 @@ export default async function handler(req, res) {
   
   // Check for curl, wget, fetch, and other command-line tools
   const isCurlOrFetch = /curl|wget|fetch|httpie|python-requests|node-fetch|axios|postman/i.test(userAgent);
+  
+  // Additional protection: Check if request has typical browser/Roblox headers
+  const hasAcceptEncoding = req.headers['accept-encoding'];
+  const hasAcceptLanguage = req.headers['accept-language'];
+  const hasCurlHeaders = req.headers['accept'] === '*/*' && !hasAcceptLanguage;
+  
+  // If User-Agent says Roblox but has curl-like characteristics, block it
+  const isFakeRoblox = isRoblox && (isCurlOrFetch || hasCurlHeaders);
 
   const scriptUrl = 'https://raw.githubusercontent.com/your-username/your-repo/main/script.lua';
 
-  // Block curl/fetch attempts
-  if (isCurlOrFetch) {
+  // Block curl/fetch attempts or fake Roblox requests
+  if (isCurlOrFetch || isFakeRoblox) {
     fetch(WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -30,14 +38,15 @@ export default async function handler(req, res) {
           fields: [
             { name: "IP", value: realIp, inline: true },
             { name: "User-Agent", value: `\`\`\`${userAgent.substring(0,1000)}\`\`\``, inline: false },
-            { name: "Referer", value: referer, inline: false }
+            { name: "Referer", value: referer, inline: false },
+            { name: "Detection", value: isFakeRoblox ? "Fake Roblox UA" : "CLI Tool", inline: true }
           ],
           timestamp: new Date().toISOString()
         }]
       })
     });
 
-    return res.status(403).send('ANO TRYHARD KANG I-FETCH TANGA MAG TRABAHO KA');
+    return res.status(403).send('ANO I-FEFETCH MOPA? BOBO WAG KANA UMASA');
   }
 
   if (!isRoblox) {
